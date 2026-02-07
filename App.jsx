@@ -25,10 +25,14 @@ export default function VadaGT() {
     nombre: "", telefono: "", municipio: "", direccion: ""
   });
 
+  // ESCUCHA EN TIEMPO REAL (No se borran al refrescar)
   useEffect(() => {
     const q = query(collection(db, "productos"), orderBy("createdAt", "desc"));
     const unsub = onSnapshot(q, (snap) => {
-      setProductos(snap.docs.map(d => ({ ...d.data(), id: d.id })));
+      const lista = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+      setProductos(lista);
+    }, (error) => {
+      console.error("Error en Firebase:", error);
     });
     return () => unsub();
   }, []);
@@ -44,17 +48,36 @@ export default function VadaGT() {
     });
   };
 
+  // FUNCIÓN CLAVE: GUARDA EN LA NUBE
   const guardarEnNube = async () => {
     if (!form.nombre || !form.precio) return alert("Ingresa nombre y precio.");
-    const pData = { ...form, precio: Number(form.precio), updatedAt: serverTimestamp() };
+    
+    // Limpiamos los datos para Firebase
+    const pData = { 
+      nombre: form.nombre,
+      precio: Number(form.precio),
+      descripcion: form.descripcion || "",
+      fotos: form.fotos,
+      stock: form.stock,
+      updatedAt: serverTimestamp() 
+    };
+
     try {
       if (editandoId) {
         await updateDoc(doc(db, "productos", editandoId), pData);
+        alert("¡Producto actualizado!");
       } else {
-        await addDoc(collection(db, "productos"), { ...pData, createdAt: serverTimestamp() });
+        await addDoc(collection(db, "productos"), { 
+          ...pData, 
+          createdAt: serverTimestamp() 
+        });
+        alert("¡Producto guardado exitosamente!");
       }
       cerrarAdmin();
-    } catch (err) { alert("Error al conectar con Firebase."); }
+    } catch (err) { 
+      console.error(err);
+      alert("Error al conectar con Firebase. Revisa tu conexión."); 
+    }
   };
 
   const cerrarAdmin = () => {
@@ -76,13 +99,11 @@ export default function VadaGT() {
 
   return (
     <main className="min-h-screen bg-slate-50 font-sans italic text-slate-900">
-      {/* NAVBAR */}
       <nav className="p-4 border-b flex justify-between items-center sticky top-0 bg-white z-50 shadow-sm">
         <h1 className="text-3xl font-black italic uppercase tracking-tighter">VADA <span className="text-blue-600">GT</span></h1>
         <button onClick={() => { if(prompt("PIN Admin:") === "vada2026") setAdmin(!admin) }} className="text-[10px] font-bold text-slate-300 hover:text-blue-600">MODO ADMIN</button>
       </nav>
 
-      {/* CATÁLOGO */}
       <div className="max-w-7xl mx-auto p-4 grid grid-cols-2 md:grid-cols-4 gap-6 mb-20">
         {productos.map(p => (
           <div key={p.id} className="bg-white rounded-[2rem] border shadow-sm overflow-hidden flex flex-col relative">
@@ -97,7 +118,7 @@ export default function VadaGT() {
             </div>
             <div className="p-4">
               <h2 className="font-black text-sm truncate uppercase">{p.nombre}</h2>
-              <p className="text-xl font-black text-blue-600">Q{p.precio.toFixed(2)}</p>
+              <p className="text-xl font-black text-blue-600">Q{p.precio ? p.precio.toFixed(2) : "0.00"}</p>
               <div className="mt-3 flex flex-wrap gap-1">
                 {TALLAS_SISTEMA.map(t => (
                   <button key={t} onClick={() => agregarAlCarrito(p, t)} className="text-[9px] px-2 py-1 rounded-lg border border-black font-bold hover:bg-black hover:text-white transition-all">
@@ -110,14 +131,12 @@ export default function VadaGT() {
         ))}
       </div>
 
-      {/* BOTÓN FLOTANTE CARRITO */}
       {carrito.length > 0 && (
         <button onClick={() => setCarritoAbierto(true)} className="fixed bottom-6 right-6 bg-black text-white px-8 py-4 rounded-full shadow-2xl z-50 font-black flex gap-2 items-center">
           🛍️ BOLSA ({carrito.length})
         </button>
       )}
 
-      {/* MODAL ADMIN */}
       {modalAdmin && (
         <div className="fixed inset-0 bg-black/80 z-[80] flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-xl rounded-[2.5rem] p-8 max-h-[90vh] overflow-y-auto">
@@ -133,7 +152,6 @@ export default function VadaGT() {
         </div>
       )}
 
-      {/* PANEL CARRITO */}
       {carritoAbierto && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[70] flex justify-end">
           <div className="bg-white w-full max-w-md h-full p-8 flex flex-col">
@@ -142,7 +160,7 @@ export default function VadaGT() {
               {carrito.map((item, idx) => (
                 <div key={idx} className="border-b py-2 flex justify-between">
                   <span>{item.nombre} ({item.tallaSeleccionada})</span>
-                  <span className="font-bold">Q{item.precio}</span>
+                  <span className="font-bold">Q{item.precio.toFixed(2)}</span>
                 </div>
               ))}
             </div>
