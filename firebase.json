@@ -1,6 +1,6 @@
 {
   "apphosting": {
-    "backendId": "vadagtweb",
+    "backendId": "vadagt",
     "rootDir": "/",
     "ignore": [
       "node_modules",
