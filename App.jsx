@@ -25,7 +25,7 @@ export default function VadaGT() {
     nombre: "", telefono: "", municipio: "", direccion: ""
   });
 
-  // ESCUCHA EN TIEMPO REAL: Los datos se mantienen al refrescar
+  // ESCUCHA EN TIEMPO REAL: Los datos se cargan desde la DB Enterprise
   useEffect(() => {
     const q = query(collection(db, "productos"), orderBy("createdAt", "desc"));
     const unsub = onSnapshot(q, (snap) => {
@@ -37,18 +37,7 @@ export default function VadaGT() {
     return () => unsub();
   }, []);
 
-  const manejarFotos = (e) => {
-    const files = Array.from(e.target.files);
-    files.forEach(file => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setForm(prev => ({ ...prev, fotos: [...prev.fotos, reader.result] }));
-      };
-      reader.readAsDataURL(file);
-    });
-  };
-
-  // GUARDA EN LA NUBE (PERSISTENCIA)
+  // GUARDAR PRODUCTO: Asegura la persistencia en la nube
   const guardarEnNube = async () => {
     if (!form.nombre || !form.precio) return alert("Ingresa nombre y precio.");
     
@@ -75,7 +64,7 @@ export default function VadaGT() {
       cerrarAdmin();
     } catch (err) { 
       console.error("Error al guardar:", err);
-      alert("Error al conectar con Firebase. Revisa tus reglas de seguridad."); 
+      alert("Error de conexión. Verifica las Reglas de Firebase."); 
     }
   };
 
@@ -83,6 +72,17 @@ export default function VadaGT() {
     setModalAdmin(false);
     setEditandoId(null);
     setForm({ nombre: "", sku: "", precio: "", descripcion: "", fotos: [], stock: { XS: 0, S: 0, M: 0, L: 0, XL: 0, XXL: 0, XXXL: 0 } });
+  };
+
+  const manejarFotos = (e) => {
+    const files = Array.from(e.target.files);
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setForm(prev => ({ ...prev, fotos: [...prev.fotos, reader.result] }));
+      };
+      reader.readAsDataURL(file);
+    });
   };
 
   const agregarAlCarrito = (producto, talla) => {
