@@ -25,14 +25,14 @@ export default function VadaGT() {
     nombre: "", telefono: "", municipio: "", direccion: ""
   });
 
-  // ESCUCHA EN TIEMPO REAL (No se borran al refrescar)
+  // ESCUCHA EN TIEMPO REAL: Los datos se mantienen al refrescar
   useEffect(() => {
     const q = query(collection(db, "productos"), orderBy("createdAt", "desc"));
     const unsub = onSnapshot(q, (snap) => {
       const lista = snap.docs.map(d => ({ ...d.data(), id: d.id }));
       setProductos(lista);
     }, (error) => {
-      console.error("Error en Firebase:", error);
+      console.error("Error en conexión Firestore:", error);
     });
     return () => unsub();
   }, []);
@@ -48,11 +48,10 @@ export default function VadaGT() {
     });
   };
 
-  // FUNCIÓN CLAVE: GUARDA EN LA NUBE
+  // GUARDA EN LA NUBE (PERSISTENCIA)
   const guardarEnNube = async () => {
     if (!form.nombre || !form.precio) return alert("Ingresa nombre y precio.");
     
-    // Limpiamos los datos para Firebase
     const pData = { 
       nombre: form.nombre,
       precio: Number(form.precio),
@@ -75,8 +74,8 @@ export default function VadaGT() {
       }
       cerrarAdmin();
     } catch (err) { 
-      console.error(err);
-      alert("Error al conectar con Firebase. Revisa tu conexión."); 
+      console.error("Error al guardar:", err);
+      alert("Error al conectar con Firebase. Revisa tus reglas de seguridad."); 
     }
   };
 
@@ -118,7 +117,7 @@ export default function VadaGT() {
             </div>
             <div className="p-4">
               <h2 className="font-black text-sm truncate uppercase">{p.nombre}</h2>
-              <p className="text-xl font-black text-blue-600">Q{p.precio ? p.precio.toFixed(2) : "0.00"}</p>
+              <p className="text-xl font-black text-blue-600">Q{p.precio ? Number(p.precio).toFixed(2) : "0.00"}</p>
               <div className="mt-3 flex flex-wrap gap-1">
                 {TALLAS_SISTEMA.map(t => (
                   <button key={t} onClick={() => agregarAlCarrito(p, t)} className="text-[9px] px-2 py-1 rounded-lg border border-black font-bold hover:bg-black hover:text-white transition-all">
@@ -160,7 +159,7 @@ export default function VadaGT() {
               {carrito.map((item, idx) => (
                 <div key={idx} className="border-b py-2 flex justify-between">
                   <span>{item.nombre} ({item.tallaSeleccionada})</span>
-                  <span className="font-bold">Q{item.precio.toFixed(2)}</span>
+                  <span className="font-bold">Q{Number(item.precio).toFixed(2)}</span>
                 </div>
               ))}
             </div>
