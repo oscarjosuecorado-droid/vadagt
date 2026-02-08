@@ -15,3 +15,4 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0
 
 // Exportamos db apuntando a la base de datos 'default' (Enterprise)
 export const db = getFirestore(app);
+// Version 2.0 funcional
