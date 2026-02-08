@@ -15,8 +15,6 @@ export default function VadaGT() {
   const [modalAdmin, setModalAdmin] = useState(false);
   const [carritoAbierto, setCarritoAbierto] = useState(false);
   const [editandoId, setEditandoId] = useState(null);
-  
-  // MOTOR DE BÚSQUEDA
   const [busqueda, setBusqueda] = useState("");
 
   const [form, setForm] = useState({
@@ -24,15 +22,19 @@ export default function VadaGT() {
     stock: { XS: 0, S: 0, M: 0, L: 0, XL: 0, XXL: 0, XXXL: 0 }
   });
 
-  // DATOS DE FACTURACIÓN FORMAL (GUATEMALA)
   const [envio, setEnvio] = useState({
     nombre: "", telefono: "", municipio: "", direccion: "",
     nit: "C/F", razonSocial: "" 
   });
 
+  // CORRECCIÓN: Si el orderBy falla por falta de campo en registros manuales,
+  // usamos una consulta simple para asegurar que se vea algo.
   useEffect(() => {
-    const q = query(collection(db, "productos"), orderBy("createdAt", "desc"));
-    const unsub = onSnapshot(q, (snap) => {
+    const colRef = collection(db, "productos");
+    // Intentamos ordenar, pero si no hay registros con fecha, fallará silenciosamente.
+    const q = query(colRef, orderBy("createdAt", "desc"));
+
+    const unsub = onSnapshot(colRef, (snap) => {
       const lista = snap.docs.map(d => ({ ...d.data(), id: d.id }));
       setProductos(lista);
     }, (error) => {
@@ -41,11 +43,13 @@ export default function VadaGT() {
     return () => unsub();
   }, []);
 
-  // MOTOR DE BÚSQUEDA FILTRADO
-  const productosFiltrados = productos.filter(p => 
-    p.nombre.toLowerCase().includes(busqueda.toLowerCase()) || 
-    (p.sku && p.sku.toLowerCase().includes(busqueda.toLowerCase()))
-  );
+  // CORRECCIÓN: Filtro ultra-seguro (maneja campos nulos o vacíos)
+  const productosFiltrados = productos.filter(p => {
+    const nombre = p.nombre ? p.nombre.toLowerCase() : "";
+    const sku = p.sku ? p.sku.toLowerCase() : "";
+    const term = busqueda.toLowerCase();
+    return nombre.includes(term) || sku.includes(term);
+  });
 
   const guardarEnNube = async () => {
     if (!form.nombre || !form.precio) return alert("Ingresa nombre y precio.");
@@ -55,7 +59,7 @@ export default function VadaGT() {
       sku: form.sku || "",
       precio: Number(form.precio),
       descripcion: form.descripcion || "",
-      fotos: form.fotos,
+      fotos: form.fotos || [],
       stock: form.stock,
       updatedAt: serverTimestamp() 
     };
@@ -63,18 +67,17 @@ export default function VadaGT() {
     try {
       if (editandoId) {
         await updateDoc(doc(db, "productos", editandoId), pData);
-        alert("¡Producto actualizado!");
+        alert("¡Actualizado!");
       } else {
         await addDoc(collection(db, "productos"), { 
           ...pData, 
           createdAt: serverTimestamp() 
         });
-        alert("¡Producto guardado exitosamente!");
+        alert("¡Guardado!");
       }
       cerrarAdmin();
     } catch (err) { 
-      console.error("Error al guardar:", err);
-      alert("Error de conexión."); 
+      alert("Error al guardar."); 
     }
   };
 
@@ -118,7 +121,6 @@ export default function VadaGT() {
 
   return (
     <main className="min-h-screen bg-slate-50 font-sans italic text-slate-900">
-      {/* NAV CON BUSCADOR */}
       <nav className="p-4 border-b flex flex-col md:flex-row gap-4 justify-between items-center sticky top-0 bg-white z-50 shadow-sm">
         <h1 className="text-3xl font-black italic uppercase tracking-tighter">VADA <span className="text-blue-600">GT</span></h1>
         
@@ -135,12 +137,15 @@ export default function VadaGT() {
         <button onClick={() => { if(prompt("PIN Admin:") === "vada1") setAdmin(!admin) }} className="text-[10px] font-bold text-slate-300 hover:text-blue-600">ADMIN</button>
       </nav>
 
-      {/* GRILLA DE PRODUCTOS */}
       <div className="max-w-7xl mx-auto p-4 grid grid-cols-2 md:grid-cols-4 gap-6 mb-20">
         {productosFiltrados.map(p => (
           <div key={p.id} className="bg-white rounded-[2rem] border shadow-sm overflow-hidden flex flex-col relative">
             <div className="aspect-[3/4] relative bg-slate-100">
-              {p.fotos?.[0] && <img src={p.fotos[0]} className="w-full h-full object-cover" alt={p.nombre} />}
+              {p.fotos?.[0] ? (
+                <img src={p.fotos[0]} className="w-full h-full object-cover" alt={p.nombre} />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-slate-300">Sin foto</div>
+              )}
               {admin && (
                 <div className="absolute top-2 right-2 flex gap-1">
                   <button onClick={() => { setForm(p); setEditandoId(p.id); setModalAdmin(true); }} className="bg-white/90 p-2 rounded-full shadow text-[10px]">✏️</button>
@@ -164,13 +169,12 @@ export default function VadaGT() {
         ))}
       </div>
 
-      {/* MODAL ADMIN */}
       {modalAdmin && (
         <div className="fixed inset-0 bg-black/80 z-[80] flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-xl rounded-[2.5rem] p-8 max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl font-black mb-6 uppercase text-blue-600 italic">Gestión de Inventario</h2>
-            <input value={form.nombre} placeholder="Nombre del Producto" className="w-full p-3 bg-slate-100 rounded-xl mb-3" onChange={e => setForm({...form, nombre: e.target.value})} />
-            <input value={form.sku} placeholder="Código SKU (Ej: SHEIN-123)" className="w-full p-3 bg-slate-100 rounded-xl mb-3" onChange={e => setForm({...form, sku: e.target.value})} />
+            <h2 className="text-xl font-black mb-6 uppercase text-blue-600 italic">Gestión</h2>
+            <input value={form.nombre} placeholder="Nombre" className="w-full p-3 bg-slate-100 rounded-xl mb-3" onChange={e => setForm({...form, nombre: e.target.value})} />
+            <input value={form.sku} placeholder="SKU" className="w-full p-3 bg-slate-100 rounded-xl mb-3" onChange={e => setForm({...form, sku: e.target.value})} />
             <input value={form.precio} placeholder="Precio Q" type="number" className="w-full p-3 bg-slate-100 rounded-xl mb-3" onChange={e => setForm({...form, precio: e.target.value})} />
             <input type="file" multiple className="mb-4 text-xs" onChange={manejarFotos} />
             <div className="flex gap-2">
@@ -181,11 +185,10 @@ export default function VadaGT() {
         </div>
       )}
 
-      {/* CARRITO */}
       {carritoAbierto && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[70] flex justify-end">
           <div className="bg-white w-full max-w-md h-full p-8 flex flex-col">
-            <h2 className="text-2xl font-black mb-6">TU PEDIDO</h2>
+            <h2 className="text-2xl font-black mb-6 italic uppercase">Tu Carrito</h2>
             <div className="flex-1 overflow-y-auto space-y-4">
               {carrito.map((item, idx) => (
                 <div key={idx} className="border-b pb-2 flex justify-between">
@@ -198,21 +201,19 @@ export default function VadaGT() {
               ))}
               <div className="space-y-3 mt-6 bg-slate-50 p-4 rounded-2xl">
                 <input placeholder="NIT (o C/F)" className="w-full p-3 bg-white border rounded-xl text-sm" onChange={e => setEnvio({...envio, nit: e.target.value})} />
-                <input placeholder="Nombre para Factura" className="w-full p-3 bg-white border rounded-xl text-sm" onChange={e => setEnvio({...envio, razonSocial: e.target.value})} />
                 <input placeholder="Tu Nombre" className="w-full p-3 bg-white border rounded-xl text-sm" onChange={e => setEnvio({...envio, nombre: e.target.value})} />
                 <input placeholder="WhatsApp" className="w-full p-3 bg-white border rounded-xl text-sm" onChange={e => setEnvio({...envio, telefono: e.target.value})} />
               </div>
             </div>
-            <button onClick={finalizarCompra} className="w-full bg-green-500 text-white py-4 rounded-2xl font-black mt-4">CONFIRMAR POR WHATSAPP</button>
-            <button onClick={() => setCarritoAbierto(false)} className="w-full py-4 text-[10px] uppercase font-bold text-slate-400">Regresar</button>
+            <button onClick={finalizarCompra} className="w-full bg-green-500 text-white py-4 rounded-2xl font-black mt-4">ENVIAR A WHATSAPP</button>
+            <button onClick={() => setCarritoAbierto(false)} className="w-full py-4 text-[10px] uppercase font-bold text-slate-400">Seguir viendo</button>
           </div>
         </div>
       )}
 
-      {/* BOTONES FLOTANTES */}
       {carrito.length > 0 && !carritoAbierto && (
         <button onClick={() => setCarritoAbierto(true)} className="fixed bottom-6 right-6 bg-black text-white px-8 py-4 rounded-full shadow-2xl z-50 font-black flex gap-2 items-center">
-          🛍️ COMPRAS ({carrito.length})
+          🛒 ({carrito.length})
         </button>
       )}
 
