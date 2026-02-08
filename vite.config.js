@@ -4,9 +4,16 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
-    allowedHosts: true
+    allowedHosts: [
+      '.a.run.app',
+      '.hosted.app',
+      'localhost'
+    ]
   },
   preview: {
-    allowedHosts: true
+    allowedHosts: [
+      '.a.run.app',
+      '.hosted.app'
+    ]
   }
 })
